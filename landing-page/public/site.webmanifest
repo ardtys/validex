@@ -1,0 +1,22 @@
+{
+  "name": "VALIDEX - Solana Token Security Auditor",
+  "short_name": "VALIDEX",
+  "description": "stop getting rugged. scan any solana token before you ape in.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#38bdf8",
+  "icons": [
+    {
+      "src": "/validex.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

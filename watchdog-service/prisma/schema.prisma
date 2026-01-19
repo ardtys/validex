@@ -1,0 +1,138 @@
+// Prisma Schema untuk Watchdog Monitoring System
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  monitoredTokens MonitoredToken[]
+  notifications   Notification[]
+
+  @@map("users")
+}
+
+// Monitored Token Model
+model MonitoredToken {
+  id           String   @id @default(uuid())
+  tokenAddress String
+  tokenName    String?
+  tokenSymbol  String?
+
+  // Status tracking
+  lastStatus   Json     // Store full security status as JSON
+  currentStatus Json?   // Current status for comparison
+
+  // Monitoring configuration
+  checkInterval Int     @default(600) // seconds (default 10 minutes)
+  isActive     Boolean @default(true)
+
+  // Alert settings
+  alertOnMintChange   Boolean @default(true)
+  alertOnFreezeChange Boolean @default(true)
+  alertOnRugRisk      Boolean @default(true)
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastChecked DateTime?
+
+  // Relations
+  ownerId       String
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  statusHistory StatusHistory[]
+  alerts        Alert[]
+
+  @@unique([tokenAddress, ownerId])
+  @@index([tokenAddress])
+  @@index([ownerId])
+  @@index([isActive])
+  @@map("monitored_tokens")
+}
+
+// Status History Model
+model StatusHistory {
+  id       String   @id @default(uuid())
+  tokenId  String
+  token    MonitoredToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  status   Json     // Store security status snapshot
+  timestamp DateTime @default(now())
+
+  // Detected changes
+  changes  Json?    // Array of changes detected
+
+  @@index([tokenId])
+  @@index([timestamp])
+  @@map("status_history")
+}
+
+// Alert Model
+model Alert {
+  id       String   @id @default(uuid())
+  tokenId  String
+  token    MonitoredToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  alertType String  // "MINT_CHANGE", "FREEZE_CHANGE", "RUG_RISK", etc.
+  severity  String  // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  message   String
+  details   Json?
+
+  // Status
+  isRead    Boolean @default(false)
+  sentEmail Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([tokenId])
+  @@index([createdAt])
+  @@index([isRead])
+  @@map("alerts")
+}
+
+// Notification Model (Email log)
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subject   String
+  body      String
+  status    String   // "SENT", "FAILED", "PENDING"
+
+  // Email metadata
+  toEmail   String
+  sentAt    DateTime?
+  error     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// System Configuration
+model SystemConfig {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
+
+  updatedAt DateTime @updatedAt
+
+  @@map("system_config")
+}
