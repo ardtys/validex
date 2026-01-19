@@ -4,7 +4,7 @@ import {
   ParsedAccountData,
 } from '@solana/web3.js';
 import { getMint, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Metadata } from '@metaplex-foundation/mpl-token-metadata';
+import type { Metadata } from '@metaplex-foundation/mpl-token-metadata';
 import {
   AuditResult,
   AuthorityStatus,
@@ -126,12 +126,96 @@ export class SolanaTokenAuditor {
         return null;
       }
 
-      // Deserialize metadata
-      const metadata = Metadata.deserialize(accountInfo.data);
+      // Manual deserialization for v3 compatibility
+      const metadata = this.decodeMetadata(accountInfo.data);
 
-      return metadata[0];
+      return metadata;
     } catch (error) {
       console.error('Error fetching metadata:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Decode metadata manually for compatibility with v3
+   */
+  private decodeMetadata(buffer: Buffer): any {
+    try {
+      // Skip first byte (key/discriminator)
+      let offset = 1;
+
+      // Read update authority (32 bytes)
+      const updateAuthority = new PublicKey(buffer.slice(offset, offset + 32));
+      offset += 32;
+
+      // Read mint (32 bytes)
+      const mint = new PublicKey(buffer.slice(offset, offset + 32));
+      offset += 32;
+
+      // Read name (string with length prefix)
+      const nameLength = buffer.readUInt32LE(offset);
+      offset += 4;
+      const name = buffer.slice(offset, offset + nameLength).toString('utf8');
+      offset += nameLength;
+
+      // Read symbol (string with length prefix)
+      const symbolLength = buffer.readUInt32LE(offset);
+      offset += 4;
+      const symbol = buffer.slice(offset, offset + symbolLength).toString('utf8');
+      offset += symbolLength;
+
+      // Read uri (string with length prefix)
+      const uriLength = buffer.readUInt32LE(offset);
+      offset += 4;
+      const uri = buffer.slice(offset, offset + uriLength).toString('utf8');
+      offset += uriLength;
+
+      // Read seller fee basis points (2 bytes)
+      const sellerFeeBasisPoints = buffer.readUInt16LE(offset);
+      offset += 2;
+
+      // Read creators (optional)
+      const hasCreators = buffer[offset] === 1;
+      offset += 1;
+
+      let creators = null;
+      if (hasCreators) {
+        const creatorsLength = buffer.readUInt32LE(offset);
+        offset += 4;
+        creators = [];
+        for (let i = 0; i < creatorsLength; i++) {
+          const creator = {
+            address: new PublicKey(buffer.slice(offset, offset + 32)),
+            verified: buffer[offset + 32] === 1,
+            share: buffer[offset + 33],
+          };
+          creators.push(creator);
+          offset += 34;
+        }
+      }
+
+      // Read primary sale happened (1 byte)
+      const primarySaleHappened = buffer[offset] === 1;
+      offset += 1;
+
+      // Read is mutable (1 byte)
+      const isMutable = buffer[offset] === 1;
+
+      return {
+        updateAuthority,
+        mint,
+        data: {
+          name: name.replace(/\0/g, ''),
+          symbol: symbol.replace(/\0/g, ''),
+          uri: uri.replace(/\0/g, ''),
+          sellerFeeBasisPoints,
+          creators,
+        },
+        primarySaleHappened,
+        isMutable,
+      };
+    } catch (error) {
+      console.error('Error decoding metadata:', error);
       return null;
     }
   }
