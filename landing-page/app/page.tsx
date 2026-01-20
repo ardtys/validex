@@ -436,7 +436,7 @@ export default function Home() {
                   <strong className="text-red-400">disclaimer:</strong> this tool checks on-chain data. not financial advice. scammers evolve, no tool is 100%. always dyor. if it looks too good to be true, it probably is. validex not responsible for your losses.
                 </p>
                 <p className="text-xs text-gray-700 mt-4 font-mono">
-                  © 2024 validex · made for solana degens
+                  © 2026 validex · made for solana degens
                 </p>
               </div>
             </div>
